@@ -1,79 +1,218 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useState, useCallback, useEffect } from 'react';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  SafeAreaView, 
+  StatusBar, 
+  TouchableOpacity,
+  FlatList,
+  Modal,
+  TextInput,
+} from 'react-native';
+import AsyncStorage from '@react-native-community/async-storage';
+import { Ionicons } from '@expo/vector-icons';
+
+import * as Animatable from 'react-native-animatable';
+
+import TaskList from './src/components/TaskList';
+
+const AnimatedButton = Animatable.createAnimatableComponent(TouchableOpacity);
 
 export default function App() {
-  const [weight, setWeight] = useState('');
-  const [height, setHeight] = useState('');
+  const [task, setTask] = useState([]);
+  const [IsOpen, setIsOpen] = useState(false);
+  const [inputModal, setInputModal] = useState('');
 
-  function handleSubmit() {
-    const alt = height / 100;
-    const imc = weight / (alt * alt);
-    
-    if (imc < 18.6) {
-      alert('Você está abaixo do peso!' + imc.toFixed(2));
-    } else if (imc >= 18.6 && imc < 24.9) {
-      alert('Peso ideal!' + imc.toFixed(2));
-    } else if (imc >= 24.9 && imc < 34.9) {
-      alert('Levemente acima do peso!' + imc.toFixed(2));
-    }
+  // bucando todas as tasks quando iniciar o app
+  useEffect(() => {
+    async function loadTasks() {
+      // localizando um item no Storage
+      const taskStorage = await AsyncStorage.getItem('@task');
+
+      if (taskStorage) {
+        setTask(JSON.parse(taskStorage));
+      }
+    };
+
+    loadTasks();
+  }, []);
+
+  // salvando caso tenha alguma task alterada
+  useEffect(() => {
+    async function saveTasks() {
+      // salvando um item no Storage
+      await AsyncStorage.setItem('@task', JSON.stringify(task));
+    };
+
+    saveTasks();
+  }, [task]);
+
+  function handleAdd() {
+    if (inputModal === '') return;
+
+    const data = {
+      key: inputModal,
+      task: inputModal
+    };
+
+    setTask([...task, data]);
+    setIsOpen(false);
+    setInputModal('');
   };
 
+  const handleDelete = useCallback((data) => {
+    // vai retornar todos os itens menos o que o usuário clicou 
+    const findItems = task.filter(result => result.key !== data.key);
+    setTask(findItems);
+  });
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Calcule seu IMC</Text>
+    // o SafeAreaView é para o teste não ficar encima da StatusBar no IOS
+    <SafeAreaView style={styles.container}>
+      <StatusBar backgroundColor="#171D31" barStyle="light-content" />
+      
+      <View style={styles.content}>
+        <Text style={styles.title}>My tasks</Text>
+      </View>
 
-      <TextInput 
-        style={styles.input}
-        value={weight}
-        onChangeText={ (weight) => setWeight(weight)}
-        placeholder="Peso (kg)"
-        keyboardType="numeric"
+      <FlatList
+        marginHorizontal={10}
+        showsHorizontalScrollIndicator={false}
+        data={task}
+        keyExtractor={(item) => String(item.key)}
+        renderItem={({ item }) => <TaskList data={item} handleDelete={handleDelete} />}
       />
 
-      <TextInput 
-        style={styles.input}
-        value={height}
-        onChangeText={ (height) => setHeight(height) }
-        placeholder="Altura (cm)"
-        keyboardType="numeric"
-      />
+      <Modal animationType="slide" transparent={false} visible={IsOpen}>
+        <SafeAreaView style={styles.modal}>
 
-      <TouchableOpacity 
-        style={styles.button}
-        onPress={handleSubmit}
+          <View style={styles.modalHeader}>
+            <TouchableOpacity onPress={() => setIsOpen(false)}>
+              <Ionicons 
+                style={{ marginLeft: 5, marginRight: 5 }} 
+                name="md-arrow-back" 
+                size={40} 
+                color="#FFF" 
+              />
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>New task</Text>
+          </View>
+
+          <Animatable.View style={styles.modalBody} animation="fadeInUp" useNativeDriver>
+            <TextInput
+              multiline={true}
+              placeholderTextColor="#747474"
+              autoCorrect={false}
+              placeholder="What do you need to do today?"
+              style={styles.input}
+              value={inputModal}
+              onChangeText={(text) => setInputModal(text)}
+            />
+
+            <TouchableOpacity style={styles.handleAdd} onPress={handleAdd}>
+              <Text style={styles.handleAddText}>Sign Up</Text>
+            </TouchableOpacity>
+          </Animatable.View>
+
+        </SafeAreaView>
+      </Modal>
+
+      <AnimatedButton 
+        style={styles.fab}
+        useNativeDriver
+        animation="bounceInUp"
+        duration={1500}
+        onPress={() => setIsOpen(true)}
       >
-        <Text style={styles.buttonText}>Calcular</Text>
-      </TouchableOpacity>
-    </View>
+        <Ionicons name="ios-add" size={35} color="#FFF" />
+      </AnimatedButton>
+
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#171D31'
   },
+
   title: {
-    textAlign: 'center',
-    marginTop: 25,
-    fontSize: 30
-  },
-  input: {
-    backgroundColor: '#121212',
-    borderRadius: 10,
-    margin: 15,
-    padding: 10,
-    color: '#FFF',
-    fontSize: 23,
-  },
-  button: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    margin: 15,
-    backgroundColor: "#41AEF4",
-    padding: 10,
-  },
-  buttonText: {
-    color: '#FFF',
+    marginTop: 10,
+    paddingBottom: 10,
     fontSize: 25,
-  }
+    textAlign: 'center',
+    color: '#FFF'
+  },
+
+  fab: {
+    position: 'absolute',
+    width: 60,
+    height: 60,
+    backgroundColor: '#0094FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 30,
+    right: 25,
+    bottom: 25,
+    elevation: 2,
+    zIndex: 9,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowOffset: {
+      width: 1,
+      height: 3
+    },
+  },
+
+  modal: {
+    flex: 1,
+    backgroundColor: '#171D31',
+  },
+
+  modalHeader: {
+    marginLeft: 10,
+    marginTop: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+
+  modalTitle: {
+    marginLeft: 15,
+    fontSize: 23,
+    color: "#FFF",
+  },
+
+  modalBody: {
+    marginTop: 15,
+  },
+
+  input: {
+    fontSize: 15,
+    marginLeft: 10,
+    marginRight: 10,
+    marginTop: 30,
+    backgroundColor: '#FFF',
+    padding: 9,
+    height: 85,
+    textAlignVertical: 'top',
+    color: '#000',
+    borderRadius: 5,
+  },
+
+  handleAdd: {
+    backgroundColor: '#FFF',
+    marginTop: 10,
+    marginLeft: 10,
+    marginRight: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 40,
+    borderRadius: 5
+  },
+
+  handleAddText: {
+    fontSize: 20,
+  },
 });
