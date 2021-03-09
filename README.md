@@ -8,6 +8,7 @@
 
 Esse App é para cadastrar tarefas, porque eu e muitas pessoas esquecem de fazer alguma coisa.
 Nesse App você pode cadastrar tarefas e quando finalizar você pode excluir elas.
+Todas as tarefas não excluídas ficam salvas utilizando o AsyncStorage, ou seja, você pode fechar o app e abrir ele de novo que as tarefas estarão lá.
 
 ## 🚀 Tecnologias/Bibliotecas utilizadas
 
